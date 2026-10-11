@@ -1,5 +1,5 @@
 {
-  "name": "Omnichannel Short-Form Content Publishing Engine",
+  "name": "Omnichannel Short-Form Content Publishing Engine (NLP Powered)",
   "nodes": [
     {
       "parameters": {
@@ -10,25 +10,40 @@
         "options": {}
       },
       "id": "webhook-trigger",
-      "name": "Webhook Intake (Sheets/Notion/Form)",
+      "name": "Webhook Intake (Social Feed/Reddit/Trends)",
       "type": "n8n-nodes-base.webhook",
       "typeVersion": 2,
-      "position": [180, 360]
+      "position": [160, 360]
     },
     {
       "parameters": {
         "model": "claude-3-5-sonnet-20241022",
-        "prompt": "=Create an omnichannel short-form video package for topic: {{$json.body.topic}}.\n\nGenerate strict JSON with keys:\n1. 'hook': 3-second pattern interrupting opening line.\n2. 'body': 3 high-impact insight points (sentences under 12 words).\n3. 'cta': Compelling question/action driving comments.\n4. 'full_script': Seamless spoken narration for ElevenLabs.\n5. 'youtube_meta': { 'title': '...', 'description': '...', 'tags': ['...'] }\n6. 'tiktok_meta': { 'caption': '...', 'hashtags': ['#fyp', '...'] }\n7. 'instagram_meta': { 'caption': '...', 'hashtags': ['...'] }\n8. 'facebook_meta': { 'post_text': '...' }",
+        "prompt": "=You are an expert NLP Sentiment & Trend Analyst specializing in short-form virality algorithms.\n\nAnalyze the following raw scraped social text / topic:\n\"{{$json.body.raw_feed || $json.body.topic}}\"\n\nPerform these NLP tasks:\n1. Sentiment & Frustration Mining: Extract the core emotional friction, acute problem, or unresolved controversy.\n2. Key Entity & Intent Extraction: Identify the primary high-value keywords and audience intent (e.g., save money, save time, avoid scam).\n3. Viral Trigger Classification: Categorize into one of ['Pattern Interrupt', 'Contrarian Truth', 'Secret Advantage', 'Fear of Missing Out'].\n4. Target Angle: Formulate the single sharpest thesis statement to hook viewers in under 3 seconds.\n\nReturn strict JSON with keys:\n{\n  \"core_frustration\": \"...\",\n  \"keywords\": [\"...\"],\n  \"viral_trigger\": \"...\",\n  \"thesis_angle\": \"...\",\n  \"emotional_valence\": \"high_friction\"\n}",
+        "options": {
+          "temperature": 0.3,
+          "maxTokens": 800
+        }
+      },
+      "id": "nlp-sentiment-analyzer",
+      "name": "NLP Frustration & Trend Analyzer",
+      "type": "@n8n/n8n-nodes-langchain.openAi",
+      "typeVersion": 1.4,
+      "position": [380, 360]
+    },
+    {
+      "parameters": {
+        "model": "claude-3-5-sonnet-20241022",
+        "prompt": "=You are an elite short-form retention copywriter.\n\nUse this NLP Intelligence input:\n- Core Frustration: {{$json.core_frustration}}\n- Target Angle: {{$json.thesis_angle}}\n- Viral Trigger: {{$json.viral_trigger}}\n- Keywords: {{$json.keywords.join(', ')}}\n\nDraft a 45-second omnichannel video package.\n\nStrict Rules:\n1. Hook: Under 8 words. No greetings. Jump immediately into the friction.\n2. Readability: Flesch-Kincaid Grade 4-6 (simple, punchy, rhythmic sentences under 12 words).\n3. Body: 3 clear, practical value beats.\n4. Call To Action: Natural engagement trigger for pinned comment.\n\nOutput strict JSON with keys:\n{\n  \"hook\": \"...\",\n  \"body\": [\"...\", \"...\", \"...\"],\n  \"cta\": \"...\",\n  \"full_script\": \"...\",\n  \"youtube_meta\": { \"title\": \"...\", \"description\": \"...\", \"tags\": [\"...\"] },\n  \"tiktok_meta\": { \"caption\": \"...\", \"hashtags\": [\"#fyp\", \"...\"] },\n  \"instagram_meta\": { \"caption\": \"...\", \"hashtags\": [\"...\"] },\n  \"facebook_meta\": { \"post_text\": \"...\" }\n}",
         "options": {
           "temperature": 0.7,
           "maxTokens": 1500
         }
       },
       "id": "claude-omnichannel-copy",
-      "name": "Claude Omnichannel Writer",
+      "name": "Claude Script & Copywriter",
       "type": "@n8n/n8n-nodes-langchain.openAi",
       "typeVersion": 1.4,
-      "position": [420, 360]
+      "position": [620, 360]
     },
     {
       "parameters": {
@@ -56,7 +71,7 @@
       "name": "ElevenLabs Voiceover",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [660, 360]
+      "position": [860, 360]
     },
     {
       "parameters": {
@@ -84,12 +99,12 @@
       "name": "Shotstack 9:16 Cloud Render",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [900, 360]
+      "position": [1100, 360]
     },
     {
       "parameters": {
         "chatId": "={{$env.TELEGRAM_CHAT_ID}}",
-        "text": "=🎯 *Omnichannel Video Ready for Review!*\n\n*Topic:* {{$node['Webhook Intake (Sheets/Notion/Form)'].json.body.topic}}\n*Hook:* {{$node['Claude Omnichannel Writer'].json.hook}}\n*Video Preview:* {{$node['Shotstack 9:16 Cloud Render'].json.response.url || 'Rendering in progress'}}\n\n*Cross-Post Targets:*\n✅ YouTube Shorts\n✅ TikTok\n✅ Instagram Reels\n✅ Facebook Reels\n\nClick below to Approve & Publish to all networks.",
+        "text": "=🎯 *NLP-Optimized Video Ready for Review!*\n\n*Target Angle:* {{$node['NLP Frustration & Trend Analyzer'].json.thesis_angle}}\n*Trigger:* {{$node['NLP Frustration & Trend Analyzer'].json.viral_trigger}}\n*Hook:* {{$node['Claude Script & Copywriter'].json.hook}}\n\n*Video Preview:* {{$node['Shotstack 9:16 Cloud Render'].json.response.url || 'Rendering in progress'}}\n\n*Publish Targets:*\n✅ YouTube Shorts | TikTok | Instagram Reels | Facebook Reels\n\nTap to approve and trigger multi-platform distribution.",
         "replyMarkup": "inlineKeyboard",
         "inlineKeyboard": {
           "rows": [
@@ -100,7 +115,7 @@
                   "callbackData": "publish_all"
                 },
                 {
-                  "text": "❌ Reject / Edit",
+                  "text": "❌ Reject / Regenerate",
                   "callbackData": "reject"
                 }
               ]
@@ -112,13 +127,13 @@
       "name": "Human QC Multi-Channel Approval",
       "type": "n8n-nodes-base.telegram",
       "typeVersion": 1.2,
-      "position": [1140, 360]
+      "position": [1340, 360]
     },
     {
       "parameters": {
         "operation": "upload",
-        "title": "={{$node['Claude Omnichannel Writer'].json.youtube_meta.title}}",
-        "description": "={{$node['Claude Omnichannel Writer'].json.youtube_meta.description}}",
+        "title": "={{$node['Claude Script & Copywriter'].json.youtube_meta.title}}",
+        "description": "={{$node['Claude Script & Copywriter'].json.youtube_meta.description}}",
         "categoryId": "27",
         "privacyStatus": "public"
       },
@@ -126,7 +141,7 @@
       "name": "YouTube Shorts Publish",
       "type": "n8n-nodes-base.youTube",
       "typeVersion": 1,
-      "position": [1400, 160]
+      "position": [1600, 160]
     },
     {
       "parameters": {
@@ -143,14 +158,14 @@
         },
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={\n  \"post_info\": {\n    \"title\": \"{{$node['Claude Omnichannel Writer'].json.tiktok_meta.caption}}\",\n    \"privacy_level\": \"PUBLIC_TO_EVERYONE\"\n  },\n  \"source_info\": {\n    \"source\": \"PULL_FROM_URL\",\n    \"video_url\": \"{{$node['Shotstack 9:16 Cloud Render'].json.response.url}}\"\n  }\n}",
+        "jsonBody": "={\n  \"post_info\": {\n    \"title\": \"{{$node['Claude Script & Copywriter'].json.tiktok_meta.caption}}\",\n    \"privacy_level\": \"PUBLIC_TO_EVERYONE\"\n  },\n  \"source_info\": {\n    \"source\": \"PULL_FROM_URL\",\n    \"video_url\": \"{{$node['Shotstack 9:16 Cloud Render'].json.response.url}}\"\n  }\n}",
         "options": {}
       },
       "id": "tiktok-upload",
       "name": "TikTok Direct Post",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [1400, 300]
+      "position": [1600, 300]
     },
     {
       "parameters": {
@@ -167,14 +182,14 @@
         },
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={\n  \"media_type\": \"REELS\",\n  \"video_url\": \"{{$node['Shotstack 9:16 Cloud Render'].json.response.url}}\",\n  \"caption\": \"{{$node['Claude Omnichannel Writer'].json.instagram_meta.caption}}\"\n}",
+        "jsonBody": "={\n  \"media_type\": \"REELS\",\n  \"video_url\": \"{{$node['Shotstack 9:16 Cloud Render'].json.response.url}}\",\n  \"caption\": \"{{$node['Claude Script & Copywriter'].json.instagram_meta.caption}}\"\n}",
         "options": {}
       },
       "id": "instagram-reels-upload",
       "name": "Instagram Reels Post",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [1400, 440]
+      "position": [1600, 440]
     },
     {
       "parameters": {
@@ -191,29 +206,40 @@
         },
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={\n  \"upload_phase\": \"start\",\n  \"description\": \"{{$node['Claude Omnichannel Writer'].json.facebook_meta.post_text}}\"\n}",
+        "jsonBody": "={\n  \"upload_phase\": \"start\",\n  \"description\": \"{{$node['Claude Script & Copywriter'].json.facebook_meta.post_text}}\"\n}",
         "options": {}
       },
       "id": "facebook-reels-upload",
       "name": "Facebook Reels Post",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [1400, 580]
+      "position": [1600, 580]
     }
   ],
   "connections": {
-    "Webhook Intake (Sheets/Notion/Form)": {
+    "Webhook Intake (Social Feed/Reddit/Trends)": {
       "main": [
         [
           {
-            "node": "Claude Omnichannel Writer",
+            "node": "NLP Frustration & Trend Analyzer",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Claude Omnichannel Writer": {
+    "NLP Frustration & Trend Analyzer": {
+      "main": [
+        [
+          {
+            "node": "Claude Script & Copywriter",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Claude Script & Copywriter": {
       "main": [
         [
           {
