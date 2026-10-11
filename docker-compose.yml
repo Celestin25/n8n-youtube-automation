@@ -1,0 +1,87 @@
+services:
+  # ─── PostgreSQL Database ────────────────────────────────────────────────────
+  postgres:
+    image: postgres:16-alpine
+    container_name: n8n_postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - n8n_network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ─── n8n Workflow Automation ─────────────────────────────────────────────────
+  n8n:
+    image: docker.n8n.io/n8nio/n8n:latest
+    container_name: n8n_app
+    restart: unless-stopped
+    ports:
+      - "5678:5678"
+    environment:
+      # Database
+      DB_TYPE: postgresdb
+      DB_POSTGRESDB_HOST: postgres
+      DB_POSTGRESDB_PORT: 5432
+      DB_POSTGRESDB_DATABASE: ${POSTGRES_DB}
+      DB_POSTGRESDB_USER: ${POSTGRES_USER}
+      DB_POSTGRESDB_PASSWORD: ${POSTGRES_PASSWORD}
+
+      # n8n basic config
+      N8N_HOST: ${N8N_HOST:-localhost}
+      N8N_PORT: 5678
+      N8N_PROTOCOL: ${N8N_PROTOCOL:-http}
+      WEBHOOK_URL: ${WEBHOOK_URL:-http://localhost:5678/}
+
+      # Security
+      N8N_BASIC_AUTH_ACTIVE: ${N8N_BASIC_AUTH_ACTIVE:-false}
+      N8N_BASIC_AUTH_USER: ${N8N_BASIC_AUTH_USER:-admin}
+      N8N_BASIC_AUTH_PASSWORD: ${N8N_BASIC_AUTH_PASSWORD:-changeme}
+
+      # User management (n8n 1.0+)
+      N8N_USER_MANAGEMENT_DISABLED: false
+
+      # Execution & Logging
+      EXECUTIONS_DATA_SAVE_ON_ERROR: all
+      EXECUTIONS_DATA_SAVE_ON_SUCCESS: last
+      EXECUTIONS_DATA_SAVE_MANUAL_EXECUTIONS: true
+      N8N_LOG_LEVEL: info
+
+      # Timezone
+      GENERIC_TIMEZONE: ${GENERIC_TIMEZONE:-Africa/Lagos}
+      TZ: ${GENERIC_TIMEZONE:-Africa/Lagos}
+
+      # Optional: enable community nodes
+      N8N_COMMUNITY_PACKAGES_ALLOW_TOOL_USAGE: true
+      N8N_REINSTALL_MISSING_PACKAGES: true
+
+    volumes:
+      - n8n_data:/home/node/.n8n
+      - ./local_files:/files          # share local files with n8n
+      - ./backups:/backups            # for workflow backups
+    extra_hosts:
+      - "host.docker.internal:host-gateway"   # allows n8n to call localhost:3001 on your PC
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - n8n_network
+
+# ─── Volumes ──────────────────────────────────────────────────────────────────
+volumes:
+  postgres_data:
+    driver: local
+  n8n_data:
+    driver: local
+
+# ─── Network ──────────────────────────────────────────────────────────────────
+networks:
+  n8n_network:
+    driver: bridge
