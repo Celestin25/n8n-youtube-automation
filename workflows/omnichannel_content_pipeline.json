@@ -1,0 +1,279 @@
+{
+  "name": "Omnichannel Short-Form Content Publishing Engine",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "create-omnichannel-video",
+        "responseMode": "onReceived",
+        "responseData": "allEntries",
+        "options": {}
+      },
+      "id": "webhook-trigger",
+      "name": "Webhook Intake (Sheets/Notion/Form)",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [180, 360]
+    },
+    {
+      "parameters": {
+        "model": "claude-3-5-sonnet-20241022",
+        "prompt": "=Create an omnichannel short-form video package for topic: {{$json.body.topic}}.\n\nGenerate strict JSON with keys:\n1. 'hook': 3-second pattern interrupting opening line.\n2. 'body': 3 high-impact insight points (sentences under 12 words).\n3. 'cta': Compelling question/action driving comments.\n4. 'full_script': Seamless spoken narration for ElevenLabs.\n5. 'youtube_meta': { 'title': '...', 'description': '...', 'tags': ['...'] }\n6. 'tiktok_meta': { 'caption': '...', 'hashtags': ['#fyp', '...'] }\n7. 'instagram_meta': { 'caption': '...', 'hashtags': ['...'] }\n8. 'facebook_meta': { 'post_text': '...' }",
+        "options": {
+          "temperature": 0.7,
+          "maxTokens": 1500
+        }
+      },
+      "id": "claude-omnichannel-copy",
+      "name": "Claude Omnichannel Writer",
+      "type": "@n8n/n8n-nodes-langchain.openAi",
+      "typeVersion": 1.4,
+      "position": [420, 360]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://api.elevenlabs.io/v1/text-to-speech/21m00Tcm4TlvDq8ikWAM",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "xi-api-key",
+              "value": "={{$env.ELEVENLABS_API_KEY}}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"text\": \"{{$json.full_script}}\",\n  \"model_id\": \"eleven_multilingual_v2\",\n  \"voice_settings\": {\n    \"stability\": 0.4,\n    \"similarity_boost\": 0.8\n  }\n}",
+        "options": {}
+      },
+      "id": "elevenlabs-voiceover",
+      "name": "ElevenLabs Voiceover",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [660, 360]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.shotstack.io/edit/v1/render",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "x-api-key",
+              "value": "={{$env.SHOTSTACK_API_KEY}}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"timeline\": {\n    \"soundtrack\": {\n      \"src\": \"https://assets.shotstack.io/music/ambient.mp3\",\n      \"effect\": \"fadeOut\",\n      \"volume\": 0.15\n    },\n    \"tracks\": [\n      {\n        \"clips\": [\n          {\n            \"asset\": {\n              \"type\": \"audio\",\n              \"src\": \"{{$node['ElevenLabs Voiceover'].json.audio_url}}\"\n            },\n            \"start\": 0,\n            \"length\": 45\n          }\n        ]\n      }\n    ]\n  },\n  \"output\": {\n    \"format\": \"mp4\",\n    \"resolution\": \"1080\",\n    \"aspectRatio\": \"9:16\"\n  }\n}",
+        "options": {}
+      },
+      "id": "shotstack-renderer",
+      "name": "Shotstack 9:16 Cloud Render",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [900, 360]
+    },
+    {
+      "parameters": {
+        "chatId": "={{$env.TELEGRAM_CHAT_ID}}",
+        "text": "=🎯 *Omnichannel Video Ready for Review!*\n\n*Topic:* {{$node['Webhook Intake (Sheets/Notion/Form)'].json.body.topic}}\n*Hook:* {{$node['Claude Omnichannel Writer'].json.hook}}\n*Video Preview:* {{$node['Shotstack 9:16 Cloud Render'].json.response.url || 'Rendering in progress'}}\n\n*Cross-Post Targets:*\n✅ YouTube Shorts\n✅ TikTok\n✅ Instagram Reels\n✅ Facebook Reels\n\nClick below to Approve & Publish to all networks.",
+        "replyMarkup": "inlineKeyboard",
+        "inlineKeyboard": {
+          "rows": [
+            {
+              "row": [
+                {
+                  "text": "🚀 Publish to All Platforms",
+                  "callbackData": "publish_all"
+                },
+                {
+                  "text": "❌ Reject / Edit",
+                  "callbackData": "reject"
+                }
+              ]
+            }
+          ]
+        }
+      },
+      "id": "human-review-telegram",
+      "name": "Human QC Multi-Channel Approval",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [1140, 360]
+    },
+    {
+      "parameters": {
+        "operation": "upload",
+        "title": "={{$node['Claude Omnichannel Writer'].json.youtube_meta.title}}",
+        "description": "={{$node['Claude Omnichannel Writer'].json.youtube_meta.description}}",
+        "categoryId": "27",
+        "privacyStatus": "public"
+      },
+      "id": "youtube-upload",
+      "name": "YouTube Shorts Publish",
+      "type": "n8n-nodes-base.youTube",
+      "typeVersion": 1,
+      "position": [1400, 160]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://open.tiktokapis.com/v2/post/publish/video/init/",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{$env.TIKTOK_ACCESS_TOKEN}}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"post_info\": {\n    \"title\": \"{{$node['Claude Omnichannel Writer'].json.tiktok_meta.caption}}\",\n    \"privacy_level\": \"PUBLIC_TO_EVERYONE\"\n  },\n  \"source_info\": {\n    \"source\": \"PULL_FROM_URL\",\n    \"video_url\": \"{{$node['Shotstack 9:16 Cloud Render'].json.response.url}}\"\n  }\n}",
+        "options": {}
+      },
+      "id": "tiktok-upload",
+      "name": "TikTok Direct Post",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1400, 300]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://graph.facebook.com/v19.0/{{$env.IG_USER_ID}}/media",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{$env.META_ACCESS_TOKEN}}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"media_type\": \"REELS\",\n  \"video_url\": \"{{$node['Shotstack 9:16 Cloud Render'].json.response.url}}\",\n  \"caption\": \"{{$node['Claude Omnichannel Writer'].json.instagram_meta.caption}}\"\n}",
+        "options": {}
+      },
+      "id": "instagram-reels-upload",
+      "name": "Instagram Reels Post",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1400, 440]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://graph.facebook.com/v19.0/{{$env.FB_PAGE_ID}}/video_reels",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{$env.META_ACCESS_TOKEN}}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"upload_phase\": \"start\",\n  \"description\": \"{{$node['Claude Omnichannel Writer'].json.facebook_meta.post_text}}\"\n}",
+        "options": {}
+      },
+      "id": "facebook-reels-upload",
+      "name": "Facebook Reels Post",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1400, 580]
+    }
+  ],
+  "connections": {
+    "Webhook Intake (Sheets/Notion/Form)": {
+      "main": [
+        [
+          {
+            "node": "Claude Omnichannel Writer",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Claude Omnichannel Writer": {
+      "main": [
+        [
+          {
+            "node": "ElevenLabs Voiceover",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "ElevenLabs Voiceover": {
+      "main": [
+        [
+          {
+            "node": "Shotstack 9:16 Cloud Render",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Shotstack 9:16 Cloud Render": {
+      "main": [
+        [
+          {
+            "node": "Human QC Multi-Channel Approval",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Human QC Multi-Channel Approval": {
+      "main": [
+        [
+          {
+            "node": "YouTube Shorts Publish",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "TikTok Direct Post",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Instagram Reels Post",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Facebook Reels Post",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  }
+}
