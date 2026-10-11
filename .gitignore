@@ -1,0 +1,9 @@
+# Local & Environment files
+.env
+local_files/*
+!local_files/.gitkeep
+backups/*
+!backups/.gitkeep
+node_modules/
+.DS_Store
+Thumbs.db

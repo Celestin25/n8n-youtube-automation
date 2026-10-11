@@ -1,0 +1,44 @@
+services:
+  - type: web
+    name: n8n-automation
+    runtime: docker
+    dockerfilePath: Dockerfile
+    plan: free
+    region: oregon # or frankfurt, ohio, singapore
+    envVars:
+      - key: N8N_PORT
+        value: 5678
+      - key: N8N_PROTOCOL
+        value: https
+      - key: GENERIC_TIMEZONE
+        value: Africa/Lagos
+      - key: N8N_ENFORCE_SETTINGS_FILE_PERMISSIONS
+        value: "true"
+      - key: EXECUTIONS_DATA_SAVE_ON_ERROR
+        value: all
+      - key: EXECUTIONS_DATA_SAVE_ON_SUCCESS
+        value: last
+      - key: EXECUTIONS_DATA_SAVE_MANUAL_EXECUTIONS
+        value: "true"
+      - key: EXECUTIONS_DATA_PRUNE
+        value: "true"
+      - key: EXECUTIONS_DATA_MAX_AGE
+        value: "168"
+      # Database connection (Use free PostgreSQL from Neon.tech or Supabase)
+      - key: DB_TYPE
+        value: postgresdb
+      - key: DB_POSTGRESDB_DATABASE
+        sync: false
+      - key: DB_POSTGRESDB_HOST
+        sync: false
+      - key: DB_POSTGRESDB_PORT
+        value: "5432"
+      - key: DB_POSTGRESDB_USER
+        sync: false
+      - key: DB_POSTGRESDB_PASSWORD
+        sync: false
+      - key: DB_POSTGRESDB_SSL_REJECT_UNAUTHORIZED
+        value: "false"
+      # Set this to your Render service public URL (e.g. https://n8n-automation-xxxx.onrender.com)
+      - key: WEBHOOK_URL
+        sync: false

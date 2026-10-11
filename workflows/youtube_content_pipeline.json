@@ -1,0 +1,114 @@
+{
+  "name": "YouTube Shorts & Video Generation Engine",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "create-video",
+        "responseMode": "onReceived",
+        "responseData": "allEntries",
+        "options": {}
+      },
+      "id": "webhook-trigger",
+      "name": "Webhook Trigger",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [240, 300]
+    },
+    {
+      "parameters": {
+        "model": "claude-3-5-sonnet-20241022",
+        "prompt": "=Write a high-retention 45-second YouTube Short script about: {{$json.body.topic}}.\n\nRequirements:\n1. 3-Second Hook: Start immediately with controversy, curiosity, or contrarian fact. NO 'Welcome back' or 'In this video'.\n2. Body: Paced with 3 concise bullet points. Short sentences under 12 words.\n3. Call To Action: Subtly tease part 2 or tell them to check the pinned comment.\n4. Output as JSON with keys: 'hook', 'body', 'cta', 'full_script', 'image_prompt'.",
+        "options": {
+          "temperature": 0.7,
+          "maxTokens": 1000
+        }
+      },
+      "id": "claude-script-generator",
+      "name": "Claude Scriptwriter",
+      "type": "@n8n/n8n-nodes-langchain.openAi",
+      "typeVersion": 1.4,
+      "position": [460, 300]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://api.elevenlabs.io/v1/text-to-speech/21m00Tcm4TlvDq8ikWAM",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "xi-api-key",
+              "value": "={{$env.ELEVENLABS_API_KEY}}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"text\": \"{{$json.full_script}}\",\n  \"model_id\": \"eleven_multilingual_v2\",\n  \"voice_settings\": {\n    \"stability\": 0.4,\n    \"similarity_boost\": 0.8\n  }\n}",
+        "options": {}
+      },
+      "id": "elevenlabs-voiceover",
+      "name": "ElevenLabs Voiceover",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [680, 300]
+    },
+    {
+      "parameters": {
+        "chatId": "={{$env.TELEGRAM_CHAT_ID}}",
+        "text": "=🎬 *New YouTube Script & Audio Ready for Review!*\n\n*Topic:* {{$node[\"Webhook Trigger\"].json.body.topic}}\n*Hook:* {{$node[\"Claude Scriptwriter\"].json.hook}}\n\n*Full Script:*\n{{$node[\"Claude Scriptwriter\"].json.full_script}}\n\nReply 'APPROVE' to send to Shotstack video render, or edit in Sheet.",
+        "additionalFields": {
+          "parse_mode": "Markdown"
+        }
+      },
+      "id": "human-review-telegram",
+      "name": "Human QC Review Alert",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [900, 300]
+    }
+  ],
+  "connections": {
+    "Webhook Trigger": {
+      "main": [
+        [
+          {
+            "node": "Claude Scriptwriter",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Claude Scriptwriter": {
+      "main": [
+        [
+          {
+            "node": "ElevenLabs Voiceover",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "ElevenLabs Voiceover": {
+      "main": [
+        [
+          {
+            "node": "Human QC Review Alert",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  }
+}
