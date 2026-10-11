@@ -1,0 +1,77 @@
+{
+  "name": "Google Slides with Approval",
+  "nodes": [
+    {
+      "parameters": {},
+      "id": "trigger-1",
+      "name": "Manual Trigger",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [240, 300]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            { "id": "s1", "name": "presentation_title", "value": "=New Presentation - {{ $now.format('yyyy-MM-dd') }}", "type": "string" },
+            { "id": "s2", "name": "slides_content", "value": "={{ $json.content || 'Slide content here' }}", "type": "string" },
+            { "id": "s3", "name": "template_id", "value": "", "type": "string" }
+          ]
+        }
+      },
+      "id": "set-1",
+      "name": "Set Slides Config",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [460, 300]
+    },
+    {
+      "parameters": {
+        "resume": "webhook",
+        "options": {}
+      },
+      "id": "wait-1",
+      "name": "Wait for Approval",
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1.1,
+      "position": [680, 300],
+      "webhookId": "slides-approval"
+    },
+    {
+      "parameters": {
+        "operation": "create",
+        "title": "={{ $('Set Slides Config').item.json.presentation_title }}"
+      },
+      "id": "slides-1",
+      "name": "Create Google Slide",
+      "type": "n8n-nodes-base.googleSlides",
+      "typeVersion": 2,
+      "position": [900, 300]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            { "id": "r1", "name": "presentation_id", "value": "={{ $json.presentationId }}", "type": "string" },
+            { "id": "r2", "name": "edit_url", "value": "=https://docs.google.com/presentation/d/{{ $json.presentationId }}/edit", "type": "string" },
+            { "id": "r3", "name": "message", "value": "=Google Slides created! Edit here: https://docs.google.com/presentation/d/{{ $json.presentationId }}/edit", "type": "string" }
+          ]
+        }
+      },
+      "id": "set-2",
+      "name": "Get Presentation Link",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [1120, 300]
+    }
+  ],
+  "connections": {
+    "Manual Trigger": { "main": [[{ "node": "Set Slides Config", "type": "main", "index": 0 }]] },
+    "Set Slides Config": { "main": [[{ "node": "Wait for Approval", "type": "main", "index": 0 }]] },
+    "Wait for Approval": { "main": [[{ "node": "Create Google Slide", "type": "main", "index": 0 }]] },
+    "Create Google Slide": { "main": [[{ "node": "Get Presentation Link", "type": "main", "index": 0 }]] }
+  },
+  "active": false,
+  "settings": { "executionOrder": "v1" },
+  "tags": [{ "name": "daily-automation" }, { "name": "approval-required" }, { "name": "design" }]
+}

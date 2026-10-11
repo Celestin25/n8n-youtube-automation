@@ -1,0 +1,75 @@
+{
+  "name": "Web Search with Approval",
+  "nodes": [
+    {
+      "parameters": {},
+      "id": "trigger-1",
+      "name": "Manual Trigger",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [240, 300]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            { "id": "q1", "name": "search_query", "value": "={{ $json.search_query || 'Enter your search query' }}", "type": "string" }
+          ]
+        }
+      },
+      "id": "set-1",
+      "name": "Set Search Query",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [460, 300]
+    },
+    {
+      "parameters": {
+        "resume": "webhook",
+        "options": {}
+      },
+      "id": "wait-1",
+      "name": "Wait for Approval",
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1.1,
+      "position": [680, 300],
+      "webhookId": "web-search-approval"
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "=https://www.googleapis.com/customsearch/v1?key={{ $env.GOOGLE_API_KEY }}&cx={{ $env.GOOGLE_CX }}&q={{ encodeURIComponent($json.search_query) }}",
+        "options": {}
+      },
+      "id": "http-1",
+      "name": "Google Search",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [900, 300]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            { "id": "r1", "name": "results_summary", "value": "=Search complete. {{ $json.searchInformation.totalResults }} results found for: {{ $('Set Search Query').item.json.search_query }}", "type": "string" },
+            { "id": "r2", "name": "top_result", "value": "={{ $json.items[0].title }} - {{ $json.items[0].link }}", "type": "string" }
+          ]
+        }
+      },
+      "id": "set-2",
+      "name": "Format Results",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [1120, 300]
+    }
+  ],
+  "connections": {
+    "Manual Trigger": { "main": [[{ "node": "Set Search Query", "type": "main", "index": 0 }]] },
+    "Set Search Query": { "main": [[{ "node": "Wait for Approval", "type": "main", "index": 0 }]] },
+    "Wait for Approval": { "main": [[{ "node": "Google Search", "type": "main", "index": 0 }]] },
+    "Google Search": { "main": [[{ "node": "Format Results", "type": "main", "index": 0 }]] }
+  },
+  "active": false,
+  "settings": { "executionOrder": "v1" },
+  "tags": [{ "name": "daily-automation" }, { "name": "approval-required" }]
+}

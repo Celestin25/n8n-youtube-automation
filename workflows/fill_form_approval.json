@@ -1,0 +1,83 @@
+{
+  "name": "Fill Web Form with Approval",
+  "nodes": [
+    {
+      "parameters": {},
+      "id": "trigger-1",
+      "name": "Manual Trigger",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [240, 300]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            { "id": "f1", "name": "form_url", "value": "https://example.com/form", "type": "string" },
+            { "id": "f2", "name": "form_data", "value": "={{ $json.form_data || {} }}", "type": "object" },
+            { "id": "f3", "name": "method", "value": "POST", "type": "string" }
+          ]
+        }
+      },
+      "id": "set-1",
+      "name": "Set Form Details",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [460, 300]
+    },
+    {
+      "parameters": {
+        "resume": "webhook",
+        "options": {}
+      },
+      "id": "wait-1",
+      "name": "Wait for Approval",
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1.1,
+      "position": [680, 300],
+      "webhookId": "form-fill-approval"
+    },
+    {
+      "parameters": {
+        "method": "={{ $('Set Form Details').item.json.method }}",
+        "url": "={{ $('Set Form Details').item.json.form_url }}",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            { "name": "data", "value": "={{ JSON.stringify($('Set Form Details').item.json.form_data) }}" }
+          ]
+        },
+        "options": { "response": { "response": { "responseFormat": "json" } } }
+      },
+      "id": "http-1",
+      "name": "Submit Form",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [900, 300]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            { "id": "s1", "name": "status", "value": "=Form submitted successfully to {{ $('Set Form Details').item.json.form_url }}", "type": "string" },
+            { "id": "s2", "name": "response_code", "value": "={{ $json.statusCode || 200 }}", "type": "number" }
+          ]
+        }
+      },
+      "id": "set-2",
+      "name": "Confirm Submission",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [1120, 300]
+    }
+  ],
+  "connections": {
+    "Manual Trigger": { "main": [[{ "node": "Set Form Details", "type": "main", "index": 0 }]] },
+    "Set Form Details": { "main": [[{ "node": "Wait for Approval", "type": "main", "index": 0 }]] },
+    "Wait for Approval": { "main": [[{ "node": "Submit Form", "type": "main", "index": 0 }]] },
+    "Submit Form": { "main": [[{ "node": "Confirm Submission", "type": "main", "index": 0 }]] }
+  },
+  "active": false,
+  "settings": { "executionOrder": "v1" },
+  "tags": [{ "name": "daily-automation" }, { "name": "approval-required" }]
+}

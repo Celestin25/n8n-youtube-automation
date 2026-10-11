@@ -1,0 +1,84 @@
+{
+  "name": "Canva Design Request with Approval",
+  "nodes": [
+    {
+      "parameters": {},
+      "id": "trigger-1",
+      "name": "Manual Trigger",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [240, 300]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            { "id": "c1", "name": "design_title", "value": "=My Design - {{ $now.format('yyyy-MM-dd') }}", "type": "string" },
+            { "id": "c2", "name": "design_type", "value": "presentation", "type": "string" },
+            { "id": "c3", "name": "width", "value": 1920, "type": "number" },
+            { "id": "c4", "name": "height", "value": 1080, "type": "number" }
+          ]
+        }
+      },
+      "id": "set-1",
+      "name": "Set Design Config",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [460, 300]
+    },
+    {
+      "parameters": {
+        "resume": "webhook",
+        "options": {}
+      },
+      "id": "wait-1",
+      "name": "Wait for Approval",
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1.1,
+      "position": [680, 300],
+      "webhookId": "canva-approval"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.canva.com/rest/v1/designs",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"title\": \"{{ $('Set Design Config').item.json.design_title }}\",\n  \"design_type\": {\n    \"type\": \"preset\",\n    \"name\": \"{{ $('Set Design Config').item.json.design_type }}\"\n  }\n}",
+        "options": {}
+      },
+      "id": "http-1",
+      "name": "Create Canva Design",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [900, 300]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            { "id": "r1", "name": "design_id", "value": "={{ $json.design.id }}", "type": "string" },
+            { "id": "r2", "name": "edit_url", "value": "={{ $json.design.urls.edit_url }}", "type": "string" },
+            { "id": "r3", "name": "message", "value": "=Canva design created! Open here: {{ $json.design.urls.edit_url }}", "type": "string" }
+          ]
+        }
+      },
+      "id": "set-2",
+      "name": "Get Design Link",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [1120, 300]
+    }
+  ],
+  "connections": {
+    "Manual Trigger": { "main": [[{ "node": "Set Design Config", "type": "main", "index": 0 }]] },
+    "Set Design Config": { "main": [[{ "node": "Wait for Approval", "type": "main", "index": 0 }]] },
+    "Wait for Approval": { "main": [[{ "node": "Create Canva Design", "type": "main", "index": 0 }]] },
+    "Create Canva Design": { "main": [[{ "node": "Get Design Link", "type": "main", "index": 0 }]] }
+  },
+  "active": false,
+  "settings": { "executionOrder": "v1" },
+  "tags": [{ "name": "daily-automation" }, { "name": "approval-required" }, { "name": "design" }]
+}
